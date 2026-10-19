@@ -1,0 +1,7 @@
+*.log
+*.tmp
+.vscode/
+.DS_Store
+Thumbs.db
+AGENTS.md
+agent.md
