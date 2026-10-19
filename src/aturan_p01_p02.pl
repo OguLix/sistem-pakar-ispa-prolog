@@ -7,10 +7,24 @@
 %
 % - Fakta sesi `gejala_terpilih/1` dibaca dari src/basis_pengetahuan.pl
 %   (milik Anggota 4). File ini TIDAK mendefinisikan fakta tersebut.
+% - Kontrak final 19 Oktober 2026 (dikunci Anggota 4):
+%     * gejala_terpilih/1 dideklarasikan :- dynamic di basis_pengetahuan
+%       dan faktanya dimasukkan lewat tambah_gejala/1 milik basis
+%       pengetahuan, bukan langsung dari file aturan.
+%     * Validasi G08a (hanya boleh masuk bila G07 demam terpilih)
+%       ditempatkan di tambah_gejala/1 — aturan di sini cukup membaca
+%       fakta tanpa memvalidasi hubungan G07/G08a.
+%     * detail_gejala(KodeMatriks, NilaiAtom) hanya untuk penjelasan/
+%       tampilan; detail TIDAK dihitung sebagai gejala kedua, sehingga
+%       tidak dipakai sebagai syarat aturan di file ini.
+%     * Urutan load di main.pl: basis_pengetahuan -> file aturan ->
+%       mesin_inferensi -> antarmuka (dynamic termuat lebih dulu agar
+%       file aturan tidak kena existence_error).
 % - `KodeKondisi` dan kode gejala memakai atom 'P01', 'G01', dst.
 % - `Penjelasan` memakai teks (string) agar enak dibaca pengguna.
 % - Setiap klausa dirancang mengembalikan tepat satu baris hasil
-%   bila cocok, agar mesin inferensi tidak perlu membuang duplikat.
+%   bila cocok, agar mesin inferensi tidak perlu membuang duplikat
+%   (mesin inferensi tetap melakukan dedup atas kumpulan hasil/5).
 %
 % Batas medis (agent.md §3): aturan hanya menyatakan kecocokan pola
 % gejala ("kondisi yang mungkin sesuai"), bukan diagnosis final.
@@ -54,9 +68,9 @@ p01p02_satu_dari([Kode|Sisa], Pilihan) :-
 % lain (misalnya alergi pada G01–G03); aturan tidak mengklaim diagnosis
 % pasti dan tidak membedakan penyebab virus/nonvirus.
 % G07 (demam ringan pada selesma) sengaja tidak dijadikan syarat:
-% demam lebih menentukan pada P02–P04, dan hubungan G07/G08a (suhu
-% sebagai detail) perlu disepakati dulu dengan pemilik basis pengetahuan
-% (agent.md §6) agar tidak dihitung ganda.
+% demam lebih menentukan pada P02–P04, dan jadinya hubungan G07/G08a
+% sudah dikontrak Anggota 4 (validasi G08a ditaruh di tambah_gejala/1
+% pada basis pengetahuan, bukan di file aturan) — agent.md §6.
 % =====================================================================
 
 % P01-R01 — ciri utama hidung: hidung tersumbat + pilek (dua simbol ●).
@@ -133,6 +147,12 @@ aturan_p01_p02('P01', 'P01-R05',
 % G08a/G08b ○* (konteks khusus).
 % Keterbatasan: demam atau suhu ≥38°C tidak dipakai membuat klaim
 % penyebab bakteri; G08a membutuhkan pengukuran suhu nyata.
+% Catatan kontrak (Anggota 4): validasi "G08a hanya boleh masuk bila
+% G07 terpilih" berada di tambah_gejala/1 (basis_pengetahuan.pl),
+% jadi di sini G08a cukup dibaca sebagai fakta sesi. G07 disebut
+% lebih dulu di daftar kandidat, sehingga bila G07 dan G08a sama-
+% sama terpilih, Pendemam mengambil 'G07' dan tidak ada penghitungan
+% ganda demam pada satu baris hasil.
 aturan_p01_p02('P02', 'P02-R01',
     'Nyeri tenggorokan yang disertai demam atau menggigil cocok dengan gejala faringitis yang dirujuk sumber Kemenkes. Aturan ini cocok dengan gejala yang dipilih; hasil bukan diagnosis medis dan tidak menyatakan penyebab virus maupun bakteri.',
     ['G04', Pendemam]) :-
