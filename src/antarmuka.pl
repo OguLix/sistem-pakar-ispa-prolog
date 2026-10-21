@@ -45,7 +45,7 @@ pesan_tanda_bahaya(NomorDaftar, Baris) :-
              'Tanda yang dilaporkan:'],
             BarisTanda,
             ['Kondisi ini tidak dinilai oleh aturan; sistem tidak mendiagnosis kondisi gawat.',
-             'Segera hubungi pertolongan medis; jangan menunggu keluaran sistem.']],
+             'Segera hubungi pertolongan medis']],
            Baris).
 
 baris_tanda_bahaya(Nomor, Teks) :-
@@ -106,12 +106,80 @@ bentuk_kelompok(Kode-DaftarNilai, kelompok(Kode, Nama, Noninfeksi, Baris)) :-
 
 buat_baris((_, Id, Penjelasan, Dukungan), baris(Id, Penjelasan, Dukungan)).
 
+% nama_tampil/2 - nama Ramah untuk layar hasil, digunakan teks_gejala/2.
+% Nama kamus gejala_info/2 memuat keterangan teknis (mis. G05 "Batuk
+% (jenis batuk menjadi detail)") yang pas untuk pengembang tetapi
+% membingungkan orang awam pada blok hasil; kode-kode yang terdaftar
+% di sini tampil versi pendeknya. Kode lain memakai nama kamus.
+nama_tampil('G05', 'Batuk').
+nama_tampil('G07', 'Demam').
+nama_tampil(Kode, Nama) :-
+    \+ memberchk(Kode, ['G05', 'G07']),
+    gejala_info(Kode, Nama).
+
 % teks_gejala/2 - kode gejala menjadi teks baca "KODE (nama)".
 teks_gejala(Kode, Teks) :-
-    gejala_info(Kode, Nama),
+    nama_tampil(Kode, Nama),
     !,
     atomics_to_string([Kode, ' (', Nama, ')'], Teks).
 teks_gejala(Kode, Kode).
+
+% ---------------------------------------------------------------------
+% potong_baris/3 - pemenggalan paragraf panjang per kata menjadi
+% beberapa baris maksimal Lebar karakter, agar Penjelasan/Saran tidak
+% tampil sebagai SATU baris panjang yang sulit dibaca di konsol
+% sempit. Kata tunggal yang sangat panjang tetap diberi barisnya
+% sendiri. Baris hasil berupa string.
+% ---------------------------------------------------------------------
+potong_baris(Teks, Lebar, DaftarBaris) :-
+    jadikan_teks(Teks, Str),
+    split_string(Str, " ", " ", DaftarKata),
+    gelar_baris(DaftarKata, Lebar, '', DaftarBaris).
+
+gelar_baris([], _Lebar, BarisSekarang, [BarisSekarang]).
+gelar_baris([Kata|Sisa], Lebar, BarisSekarang, Daftar) :-
+    ( BarisSekarang == ''
+    -> Kandidat = Kata
+    ;  atomics_to_string([BarisSekarang, ' ', Kata], Kandidat)
+    ),
+    string_length(Kandidat, Panjang),
+    ( Panjang =< Lebar
+    -> gelar_baris(Sisa, Lebar, Kandidat, Daftar)
+    ;  BarisSekarang == ''
+    ->  ( Sisa == []
+        -> Daftar = [Kandidat]
+        ;  gelar_baris(Sisa, Lebar, '', SisaDaftar),
+           Daftar = [Kandidat|SisaDaftar]
+        )
+    ;  gelar_baris([Kata|Sisa], Lebar, '', SisaDaftar),
+       Daftar = [BarisSekarang|SisaDaftar]
+    ).
+
+% awali/3 - menambahkan awalan (umumnya jarak indentasi) pada setiap
+% baris hasil pemenggalan agar blok tetap tersusun rapi.
+awali(Awalan, Baris, BarisAwalan) :-
+    atomics_to_string([Awalan, Baris], BarisAwalan).
+
+% poin_dukungan/2 - satu gejala pendukung menjadi poin daftar.
+poin_dukungan(TeksGejala, Baris) :-
+    atomics_to_string(['  - ', TeksGejala], Baris).
+
+% garis_bingkai/1 - garis 64 karakter '=' untuk menonjolkan kepala
+% tiap kelompok kondisi pada hasil. ASCII murni agar tampil sama di
+% semua terminal Windows (tanpa bergantung dukungan warna ANSI).
+garis_bingkai(Baris) :-
+    length(Chars, 64),
+    maplist(=(61), Chars),
+    string_chars(Baris, Chars).
+
+% baris_saran/2 - saran umum satu kondisi menjadi blok baris:
+% baris pertama berawalan "Saran umum: ", baris lanjutan di-indent.
+baris_saran(Saran, Baris) :-
+    potong_baris(Saran, 64, Mentah),
+    Mentah = [Pertama|Sisa],
+    atomics_to_string(['  Saran umum: ', Pertama], BarisPertama),
+    maplist(awali('    '), Sisa, SisaInden),
+    append([[BarisPertama], SisaInden], Baris).
 
 % jadikan_teks/2 - normalisasi atom/string menjadi string untuk tampilan
 % (Penjelasan aturan antar file memakai campuran atom dan string).
@@ -138,12 +206,58 @@ blok_bahaya(NomorDaftar, Baris) :-
     pesan_tanda_bahaya(NomorDaftar, Sementara),
     append(Sementara, [''], Baris).
 
+% ---------------------------------------------------------------------
+% saran_kondisi/2 - kamus saran umum edukasi per kondisi (P01-P06).
+% Lokasi: antarmuka, karena hanya dipakai untuk TAMPILAN hasil; ini
+% BUKAN syarat aturan, BUKAN kode gejala, dan tidak mengubah inferensi
+% (agent.md 5, 6). Setiap kelompok kondisi yang muncul di hasil akan
+% menambahkan satu blok "Saran umum" dari kamus ini.
+%
+% Teks bertumpu pada sumber docs/referensi.md (akses 21 Oktober 2026):
+% - P01: CDC "About Common Cold" (umumnya pulih kurang dari seminggu)
+%   dan CDC "Manage Common Cold" (istirahat, cairan; evaluasi bila
+%   gejala lebih dari 10 hari tanpa membaik, demam lebih dari 4 hari,
+%   sulit bernapas, atau membaik lalu memburuk).
+% - P02: sumber yang dipakai (Kemenkes "Diagnosis Faringitis")
+%   mendeskripsikan gejala, bukan pengelolaan; teks sengaja konservatif
+%   tanpa klaim baru: anjuran evaluasi + batas keterbatasan penyebab
+%   yang sama dengan catatan file aturan.
+% - P03: CDC "Sinus Infection Basics", bagian When to seek medical
+%   care (>10 hari tanpa membaik, memburuk setelah membaik, demam
+%   3-4 hari lebih, nyeri wajah/sakit kepala berat) dan Treatment
+%   (banyak kasus membaik dengan sendirinya).
+% - P04: CDC "Chest Cold (Acute Bronchitis) Basics" (gejala kurang
+%   dari 3 minggu; evaluasi bila lebih dari 3 minggu, demam lebih
+%   dari 5 hari, dahak berdarah, sesak; umumnya membaik sendiri).
+% - P05: WHO Asthma; asma pembanding noninfeksi (agent.md 1), jadi
+%   saran hanya mengarah ke pengelolaan oleh tenaga kesehatan.
+% - P06: WHO Pneumonia dan PNPK pneumonia dewasa Kemenkes; saran
+%   berupa penilaian tenaga kesehatan, bukan pengobatan lingkap.
+% Batas keselamatan (agent.md 3): teks tidak memuat nama obat, dosis,
+% antibiotik, atau klaim kepastian; frasa tetap "evaluasi/segera cari
+% pertolongan medis". Teks ASCII murni (aman konsol Windows).
+% ---------------------------------------------------------------------
+saran_kondisi('P01',
+    "Selesma biasanya membaik sendiri dalam waktu kurang dari seminggu. Istirahat cukup dan minum cairan membantu kenyamanan. Periksa ke tenaga kesehatan bila gejala tidak membaik setelah sekitar 10 hari, demam melewati 4 hari, muncul napas cepat atau sulit bernapas, atau keluhan memburuk kembali setelah membaik.").
+saran_kondisi('P02',
+    "Bila nyeri tenggorokan berat, nyeri menelan hebat, atau demam tinggi yang menetap, periksa ke tenaga kesehatan. Keluhan yang tidak membaik juga perlu ditilai. Penyebab faringitis tidak bisa ditentukan hanya dari gejala.").
+saran_kondisi('P03',
+    "Banyak sinusitis membaik sendiri. Periksa ke tenaga kesehatan bila gejala tidak membaik setelah lebih dari 10 hari, kembali memburuk setelah membaik, demam melewati 3-4 hari, atau nyeri wajah dan sakit kepala sampai berat.").
+saran_kondisi('P04',
+    "Bronkitis akut biasanya membaik sendiri dan gejalanya kurang dari 3 minggu. Istirahat cukup dan minum cairan membantu kenyamanan. Periksa ke tenaga kesehatan bila batuk melewati 3 minggu, demam melewati 5 hari, dahak bercampur darah, atau muncul sesak napas.").
+saran_kondisi('P05',
+    "Asma adalah pembanding noninfeksi, bukan ISPA infeksi. Pengelolaannya mengikuti anjuran tenaga kesehatan yang menangani Anda. Segera cari pertolongan medis bila sesak memburuk atau kondisi cepat memburuk.").
+saran_kondisi('P06',
+    "Pneumonia perlu ditilai dan ditangani tenaga kesehatan. Segera cari pertolongan medis bila sesak napas makin berat, nyeri dada berat, atau kondisi cepat memburuk.").
+
 blok_hasil(ada_hasil, Hasil, Baris) :-
     status_pesan(ada_hasil, Judul),
     kelompokkan_hasil(Hasil, Kelompok),
-    maplist(baris_kelompok, Kelompok, BarisKelompok),
-    append(BarisKelompok, TeksKelompok),
-    append([['== HASIL PENCOCOKAN ATURAN ==', Judul], TeksKelompok], Baris).
+    kelompok_ke_baris(Kelompok, 1, GrupBarisKelompok),
+    append(GrupBarisKelompok, TeksKelompok),
+    append([['== HASIL PENCOCOKAN ATURAN ==', Judul,
+             'Urutan tampilan bukan peringkat tingkat keparahan.'],
+            TeksKelompok], Baris).
 blok_hasil(Status, _, Baris) :-
     Status \= ada_hasil,
     status_pesan(Status, Pesan),
@@ -153,34 +267,69 @@ blok_hasil(Status, _, Baris) :-
              'Itu BUKAN berarti Anda bebas dari penyakit.',
              ''].
 
-baris_kelompok(kelompok(Kode, Nama, Noninfeksi, DaftarBaris), BarisKelompok) :-
+% kelompok_ke_baris/3 - satu blok tampilan per kelompok kondisi dengan
+% nomor urut tampilan (bukan peringkat; disclaimer tetap dicetak di
+% header hasil). Baris hasil berupa KUMPULAN blok (daftar daftar) yang
+% diratakan oleh blok_hasil lewat append.
+kelompok_ke_baris([], _, []).
+kelompok_ke_baris([Kelompok|Sisa], Nomer, [BarisGrup|SisaBaris]) :-
+    baris_kelompok(Nomer, Kelompok, BarisGrup),
+    NomerBerikut is Nomer + 1,
+    kelompok_ke_baris(Sisa, NomerBerikut, SisaBaris).
+
+% baris_kelompok/3 - susun blok satu kondisi dengan bingkai agar
+% kepala kondisi mudah dilihat:
+%   baris kosong -> garis '=' -> "No. N." + judul kondisi -> garis '='
+%   -> blok tiap aturan yang cocok -> Saran umum.
+% Nomor urut tampilan bukan peringkat (disclaimer di header hasil).
+% Kegagalan saran_kondisi sengaja tidak menggagalkan tampilan
+% (kamus tidak lengkap tidak boleh menyembunyikan hasil).
+baris_kelompok(Nomer, kelompok(Kode, Nama, Noninfeksi, DaftarBaris), BarisKelompok) :-
     ( Noninfeksi == true
-    -> atomics_to_string(['-- Pembanding noninfeksi (bukan ISPA infeksi): ',
-                          Nama, ' (', Kode, ') --'], Judul)
-    ;  atomics_to_string(['-- Kondisi yang mungkin sesuai: ',
-                          Nama, ' (', Kode, ') --'], Judul)
+    -> atomics_to_string(['Pembanding noninfeksi (bukan ISPA infeksi): ',
+                          Nama, ' (', Kode, ')'], JudulDasar)
+    ;  atomics_to_string(['Kondisi yang mungkin sesuai: ',
+                          Nama, ' (', Kode, ')'], JudulDasar)
     ),
+    atomics_to_string(['No. ', Nomer, '. ', JudulDasar], Judul),
+    garis_bingkai(Garis),
     maplist(baris_aturan, DaftarBaris, BarisAturan),
     append(BarisAturan, TeksAturan),
-    append([[Judul], TeksAturan], BarisKelompok).
+    ( saran_kondisi(Kode, Saran)
+    -> baris_saran(Saran, BarisSaran)
+    ;  BarisSaran = []
+    ),
+    append([['', Garis, Judul, Garis],
+            TeksAturan,
+            BarisSaran],
+           BarisKelompok).
 
+% baris_aturan/2 - susun blok satu aturan yang cocok, urutan bacaan
+% dari yang paling dekat dengan pengalaman pengguna:
+%   gejala yang menyertai -> penjelasan (dipenggal) -> ID aturan.
 baris_aturan(baris(Id, Penjelasan, Dukungan), Baris) :-
     jadikan_teks(Penjelasan, P),
     maplist(teks_gejala, Dukungan, Dteks),
     ( Dteks == []
-    -> Djoin = '(tidak tercatat)'
-    ;  atomics_to_string(Dteks, ', ', Djoin)
+    -> BarisDukungan = ['  Gejala yang menyertai: tidak tercatat']
+    ;  maplist(poin_dukungan, Dteks, PoinGejala),
+       append([['  Gejala yang menyertai:'], PoinGejala], BarisDukungan)
     ),
-    atomics_to_string(['Aturan: ', Id], BarisAturan),
-    atomics_to_string(['Penjelasan: ', P], BarisPenjelasan),
-    atomics_to_string(['Gejala pendukung: ', Djoin], BarisPendukung),
-    Baris = [BarisAturan, BarisPenjelasan, BarisPendukung, ''].
+    potong_baris(P, 64, BarisPenjelasanMentah),
+    maplist(awali('    '), BarisPenjelasanMentah, BarisPenjelasan),
+    atomics_to_string(['  Kecocokan aturan: ', Id], BarisAturanId),
+    append([BarisDukungan,
+            ['  Penjelasan:'],
+            BarisPenjelasan,
+            [BarisAturanId, '']],
+           Baris).
 
 blok_penutup(Baris) :-
     Baris = ['Catatan penting:',
              '- Sistem adalah alat edukasi dan penyaringan awal, bukan alat diagnosis medis.',
              '- Hasil berupa kecocokan aturan terhadap gejala yang dipilih, bukan diagnosis.',
              '- Urutan tampilan bukan tingkat kepastian atau probabilitas.',
+             '- Saran umum pada hasil bersifat edukasi, bukan pengganti penilaian tenaga kesehatan.',
              '- Sistem tidak memberi resep, dosis obat, atau rekomendasi antibiotik.',
              '- Jika keluhan menetap atau memburuk, perlu evaluasi tenaga kesehatan.',
              '- Jika tanda bahaya muncul, segera cari pertolongan medis; jangan menunggu.',

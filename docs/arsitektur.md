@@ -120,7 +120,29 @@ Predikat murni antarmuka (dapat dites tanpa stdin):
 - `kelompokkan_hasil/2` - daftar `hasil/5` -> kelompok per kondisi;
   memakai `keysort/2` sebelum `group_pairs_by_key/2`.
 - `teks_gejala/2` dan `jadikan_teks/2` - konversi teks tampilan.
+- `nama_tampil/2` (ditambahkan 21 Oktober 2026) - nama gejala ramah
+  untuk layar hasil; memperpendek nama kamus yang memuat keterangan
+  teknis (mis. G05 "Batuk", bukan "Batuk (jenis batuk menjadi detail)").
+- `potong_baris/3`, `awali/3`, `poin_dukungan/2`, `baris_saran/2`
+  (ditambahkan 21 Oktober 2026) - pemenggalan paragraf per kata
+  (target 64 kolom) dan penyusun poin agar blok hasil mudah dibaca.
+- `saran_kondisi/2` (ditambahkan 21 Oktober 2026) - kamus saran umum
+  edukasi per kondisi (P01-P06) dengan sumber yang dicatat di
+  `docs/referensi.md` (CDC Manage Common Cold; CDC Acute Bronchitis;
+  CDC Sinus Infection; teks konservatif untuk P02/P05/P06). Hanya
+  untuk tampilan; BUKAN syarat aturan dan tidak mengubah inferensi.
+  Blok "Saran umum" tampil di akhir kelompok tiap kondisi pada hasil;
+  jika entri kamus tidak ada, tampilan tetap berjalan tanpa saran.
 - `susun_keluaran/4` - rakit baris tampilan dengan urutan tetap:
   blok tanda bahaya, blok hasil, blok penutup (disclaimer).
+  Blok hasil per aturan kini berurutan: gejala yang menyertai
+  (berpoin) -> Penjelasan (dipenggal) -> Kecocokan aturan (ID).
+- Penomoran dan bingkai kepala kondisi (ditambahkan 21 Oktober 2026):
+  tiap kelompok kondisi diawali baris kosong, garis `=` 64 karakter
+  (`garis_bingkai/1`), judul berawalan "No. N. ", lalu garis `=`.
+  Nomor adalah URUTAN TAMPILAN, bukan peringkat (disclaimer tetap
+  dicetak di header hasil; agent.md 2 no. 3). Helper penghitungnya
+  `kelompok_ke_baris/3` (antarmuka; `baris_kelompok/3` kini berpendapat
+  nomor). Tidak mengubah kontrak `inferensi/2` maupun file aturan.
 - `jawaban_ya_tidak/2`, `pilihan_menu/2`, `parse_suhu/3` - parser masukan
   murni (ya/tidak; menu 1/2; suhu 38.2 atau 38,2), dipakai ulang oleh I/O.

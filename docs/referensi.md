@@ -28,6 +28,10 @@ Dokumen ini mencatat sumber awal untuk penyusunan basis pengetahuan. Sumber yang
    - https://www.who.int/news-room/facts-in-pictures/detail/asthma
 9. **WHO — Pneumonia.** Sumber pengantar untuk batuk, sesak napas, demam/menggigil, kelelahan, nyeri dada, dan kemungkinan gejala lain.
    - https://www.who.int/health-topics/pneumonia
+10. **CDC — Manage Common Cold (treatment).** Sumber untuk saran umum edukasi P01 pada yang ditampilkan: selesma biasanya membaik sendiri, istirahat dan cairan cukup membantu kenyamanan; cari pertolongan bila sulit bernapas, demam lebih dari 4 hari, gejala lebih dari 10 hari tanpa membaik, atau membaik lalu memburuk. (Tanggal akses: 21 Oktober 2026.)
+   - https://www.cdc.gov/common-cold/treatment/index.html
+11. **CDC — Chest Cold (Acute Bronchitis) Basics.** Sumber untuk saran umum edukasi P04: gejala bronkitis akut biasanya kurang dari 3 minggu dan umumnya membaik sendiri; cari pertolongan bila gejala lebih dari 3 minggu, demam lebih dari 5 hari, dahak bercampur darah, atau sesak napas. (Tanggal akses: 21 Oktober 2026.)
+   - https://www.cdc.gov/acute-bronchitis/about/index.html
 
 ## Cara mencatat referensi per aturan
 

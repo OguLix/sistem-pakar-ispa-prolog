@@ -29,6 +29,8 @@ Memastikan aturan Prolog berjalan sesuai kontrak, menghasilkan penjelasan yang k
 | T10 | P05 asma cocok | Hasil ditandai sebagai kondisi pembanding noninfeksi, bukan infeksi. |
 | T11 | Pengguna melaporkan kesulitan bernapas berat atau gejala serius | Pesan keselamatan terlihat dan tidak tertutupi oleh daftar kecocokan. |
 | T12 | Input tidak valid | Aplikasi meminta input yang benar tanpa error yang tidak ditangani. |
+| T13 | Kondisi cocok tampil dengan saran | Setiap kode kondisi memiliki teks saran umum edukasi; teks saran bebas frasa terlarang; blok "Saran umum" muncul pada tampilan hasil. |
+| T14 | Tampilan hasil mudah dibaca | Gejala pendukung tampil berpoin dengan nama ramah (G05 tampil "Batuk", tanpa keterangan teknis kamus) dan paragraf panjang dipenggal per kata dengan lebar kolom terbatas. |
 
 ## Kerangka PL-Unit (contoh)
 

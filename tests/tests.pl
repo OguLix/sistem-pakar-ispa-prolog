@@ -403,6 +403,72 @@ test(tampilan_p05_bukan_ispa_infeksi) :-
     sub_string(Teks, _, _, _, 'bukan ISPA infeksi'),
     !.
 
+% Kamus saran umum lengkap: setiap kode kondisi memiliki teks string
+% yang cukup untuk dibaca (tidak ada entri kosong/terlalu pendek).
+test(saran_kondisi_lengkap_untuk_semua_kondisi) :-
+    forall(kondisi_info(Kode, _),
+           ( saran_kondisi(Kode, Saran),
+             string(Saran),
+             string_length(Saran, Panjang),
+             Panjang > 30 )).
+
+% Semua teks saran umum bebas frasa terlarang (agent.md 3).
+test(saran_bebas_frasa_terlarang) :-
+    forall(saran_kondisi(_, Saran),
+           ( tokenisasi(Saran, Tok), frasa_am(Tok) )).
+
+% Blok hasil menampilkan Saran umum, gejala pendukung berbentuk poin,
+% dan nama gejala versi ramah (G05 tampil "Batuk", tanpa keterangan
+% teknis kamus yang membingungkan orang awam).
+test(tampilan_saran_umum_dan_nama_gejala_ramah) :-
+    isi_sesi(['G01', 'G05'], none),
+    inferensi(ada_hasil, Hasil),
+    susun_keluaran([], ada_hasil, Hasil, Baris),
+    atomics_to_string(Baris, ' ', Teks),
+    sub_string(Teks, _, _, _, 'Saran umum'),
+    !,
+    sub_string(Teks, _, _, _, 'Gejala yang menyertai'),
+    sub_string(Teks, _, _, _, 'G05 (Batuk)'),
+    !,
+    \+ sub_string(Teks, _, _, _, 'jenis batuk menjadi detail').
+
+% pemenggalan baris: teks panjang pecah per kata dengan setiap baris
+% tidak melewati lebar target; hasil selalu string; kata tunggal yang
+% sangat panjang tetap mendapat barisnya sendiri tanpa menggantung.
+test(potong_baris_pecah_per_kata) :-
+    potong_baris('Kalimat panjang untuk uji pemenggalan per kata dengan lebar kecil', 20, Baris),
+    length(Baris, N),
+    N >= 3,
+    forall(member(B, Baris),
+           ( string(B), string_length(B, L), L =< 20 )),
+    KataPanjang = "kataSangatPanjangTanpaSpasiSekali",
+    string_length(KataPanjang, 33),
+    potong_baris(KataPanjang, 20, BarisKataPanjang),
+    BarisKataPanjang = [KataPanjang].
+
+% Bingkai kondisi: kepala tiap kelompok kondisi dibingkai baris '='
+% atas dan bawah serta bernomor "No. N" agar mudah dilihat; nomor
+% bersifat urutan tampilan, bukan peringkat (disclaimer di header).
+test(tampilan_bingkai_kepala_kondisi) :-
+    isi_sesi(['G01', 'G05'], none),
+    inferensi(ada_hasil, Hasil),
+    susun_keluaran([], ada_hasil, Hasil, Baris),
+    atomics_to_string(Baris, ' ', Teks),
+    sub_string(Teks, _, _, _, 'No. 1. Kondisi yang mungkin sesuai'),
+    !,
+    garis_bingkai(Garis),
+    findall(G, member(G, Baris), GarisGaris),
+    length(GarisGaris, JumlahGaris),
+    JumlahGaris >= 2,
+    once(muncul_berturut(Baris, Garis)).
+
+% muncul_berturut/2 - benar bila daftar baris memuat pola
+% [Elemen, _BarisDiAntaranya, Elemen] (bingkai atas, kepala kondisi,
+% bingkai bawah yang bertulisan sama).
+muncul_berturut([Elemen, _, Elemen|_], Elemen).
+muncul_berturut([_|Sisa], Elemen) :-
+    muncul_berturut(Sisa, Elemen).
+
 % Parser murni antarmuka: jawaban ya/tidak, menu, suhu.
 test(jawaban_ya_tidak_murni) :-
     jawaban_ya_tidak('Ya', ya),
