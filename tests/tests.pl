@@ -169,9 +169,11 @@ test(t05_banyak_kondisi_bersamaan) :-
     inferensi(ada_hasil, Hasil),
     findall(Kode, member(hasil(Kode, _, _, _, _), Hasil), Mentah),
     sort(Mentah, KodeUrut),
-    % P03 ikut karena P03-R04 memakai salah satu dari
-    % [G07, G04, G05, G09, G28] sebagai pilihan; G04 tersedia.
-    KodeUrut == ['P01', 'P02', 'P03'].
+    % P03 tidak lagi ikut: sejak pengetatan P03-R04 (masukan integrasi +
+    % pengujian, Opu 3; dikerjakan oleh pemilik aturan_p03_p04.pl),
+    % G04/G05 tidak lagi menjadi pendukung R04, sehingga kombinasi hidung
+    % + nyeri tenggorokan ini hanya cocok dengan P01 dan P02.
+    KodeUrut == ['P01', 'P02'].
 
 % T06: gejala tidak memenuhi syarat lengkap aturan manapun.
 test(t06_syarat_tidak_lengkap) :-

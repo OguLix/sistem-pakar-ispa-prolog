@@ -118,18 +118,26 @@ aturan_p03_p04('P03', 'P03-R03',
     p03p04_satu_dari(['G01','G02'], Jangkar),
     p03p04_satu_dari(['G16','G17','G18'], Spesifik).
 
-% P03-R04 — pola hidung + satu pendukung umum (demam G07 ○*, nyeri
-% tenggorokan G04, batuk G05, sakit kepala G09, post-nasal drip G28).
-% Sumber: CDC (ref no. 7) — sakit kepala, post-nasal drip, nyeri
-% tenggorokan, dan batuk termasuk gejala yang dideskripsikan.
-% Keterbatasan: G07 demam pada P03 adalah konteks (○*); aturan ini
-% tidak menyatakan sinusitis bakteri dari demam. G05 batuk tetap satu
-% gejala; jenis batuk hanyalah detail (agent.md §6).
+% P03-R04 — pola hidung + satu pendukung umum (demam G07 ○*,
+% sakit kepala G09, post-nasal drip G28).
+% Sumber: CDC (ref no. 7) — sakit kepala, post-nasal drip, dan demam
+% termasuk gejala yang dideskripsikan.
+% Pengetatan (kabaran integrasi + pengujian atas perilaku lama; dikerjakan
+% oleh pemilik file this sebagai Opsi 3): G04 nyeri tenggorokan dan G05
+% batuk dikeluarkan dari daftar pendukung. Keduanya justru menyaratkan
+% syarat/jangkar kondisi lain (G04: jangkar P02 dan syarat P01-R03;
+% G05: syarat P01-R04 dan jangkar P04), sehingga presentasi
+% selesma/faringitis generik tanpa satu pun sinyal sinus memicu
+% kecocokan P03 (contoh terburuk G01+G05 → P01 dan P03 bersamaan).
+% Ambang tetap satu pendukung; ciri khas sinus G14/G15/G16/G17/G18
+% sudah dicakup R01–R03. Keterbatasan: G07 demam pada P03 tetap konteks
+% (○*); aturan ini tidak menyatakan sinusitis bakteri dari demam;
+% warna sekret dan jenis batuk hanyalah detail (agent.md §6, §7).
 aturan_p03_p04('P03', 'P03-R04',
-    'Gejala hidung yang dipilih disertai salah satu keluhan pendukung (demam, nyeri tenggorokan, batuk, sakit kepala, atau lendir mengalir ke tenggorokan) cocok dengan pola sinusitis menurut CDC. Aturan ini cocok dengan gejala yang dipilih; hasil bukan diagnosis medis.',
+    'Gejala hidung yang dipilih disertai salah satu keluhan pendukung (demam, sakit kepala, atau lendir mengalir ke tenggorokan) cocok dengan pola sinusitis menurut CDC. Aturan ini cocok dengan gejala yang dipilih; hasil bukan diagnosis medis.',
     [Jangkar, Pendukung]) :-
     p03p04_satu_dari(['G01','G02'], Jangkar),
-    p03p04_satu_dari(['G07','G04','G05','G09','G28'], Pendukung).
+    p03p04_satu_dari(['G07','G09','G28'], Pendukung).
 
 % =====================================================================
 % P04 — Bronkitis akut
