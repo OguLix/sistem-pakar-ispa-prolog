@@ -208,6 +208,18 @@ test(t10_p05_pembanding_noninfeksi) :-
     member(kelompok('P05', 'Asma (pembanding noninfeksi)', true, _), Kelompok),
     kondisi_noninfeksi('P05').
 
+% P05-R06 khusus untuk napas berbunyi umum (G20b), bukan mengi (G20a)
+% yang sudah ditangani P05-R02; antarmuka menanyakan G20b secara jelas.
+test(p05_r06_g20b_tidak_tumpang_tindih) :-
+    isi_sesi(['G20a', 'G21'], none),
+    \+ aturan_p05_p06('P05', 'P05-R06', _, _),
+    isi_sesi(['G20b', 'G21'], none),
+    once(aturan_p05_p06('P05', 'P05-R06', _, Dukungan)),
+    Dukungan == ['G20b', 'G21'],
+    pertanyaan_gejala('G20b', Pertanyaan),
+    sub_string(Pertanyaan, _, _, _, 'napas Anda terdengar berbunyi'),
+    !.
+
 % T11: tanda bahaya tampil sebelum daftar kecocokan (urutan baris).
 test(t11_tanda_bahaya_di_atas_hasil) :-
     HasilUji = [hasil('P01', 'Common cold / selesma', 'P01-R01',

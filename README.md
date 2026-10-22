@@ -49,7 +49,7 @@ Dari folder root proyek:
 swipl -q -s tests/tests.pl -g run_tests -t halt
 ```
 
-Suite memuat 90 tes PL-Unit yang mencakup kasus positif dan negatif untuk seluruh klausa aturan, guard gejala dan penolakan detail, reset antar sesi, pengelompokan hasil, pemunculan tanda bahaya di atas hasil, parser masukan, serta pemindaian frasa terlarang pada penjelasan aturan.
+Suite memuat 96 tes PL-Unit yang mencakup kasus positif dan negatif untuk seluruh klausa aturan, guard gejala dan penolakan detail, reset antar sesi, pengelompokan hasil, pemunculan tanda bahaya di atas hasil, parser masukan, serta pemindaian frasa terlarang pada penjelasan aturan.
 
 ## Struktur proyek
 
