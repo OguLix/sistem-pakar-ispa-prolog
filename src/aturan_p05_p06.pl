@@ -119,16 +119,16 @@ aturan_p05_p06('P05', 'P05-R05',
     p05p06_satu_dari(['G19','G20a'], Jangkar),
     gejala_terpilih('G05').
 
-% P05-R06 — pola napas berbunyi (G20a/G20b) + dada berat, tanpa G19.
-% Varian tanpa keluhan sesak yang eksplisit; menangkap pengguna yang
-% mencatat bunyi napas dan rasa berat dada saja.
+% P05-R06 — napas berbunyi secara umum (G20b) + dada berat.
+% G20a sudah tercakup oleh P05-R02; memakai G20b saja di sini
+% menghindari dua aturan dengan dukungan yang sama untuk G20a + G21.
 % Keterbatasan: G20b bertipe ○ (napas berbunyi secara umum tidak
 % spesifik wheezing) sehingga aturan ini tetap hanya menyatakan
-% kecocokan pola, bukan klaim asma.
+% kecocokan pola, bukan klaim asma. Sesak eksplisit bukan syarat.
 aturan_p05_p06('P05', 'P05-R06',
-    'Mengi atau napas berbunyi yang disertai dada terasa berat/tertekan cocok dengan pola gejala asma yang dideskripsikan WHO. Asma adalah pembanding noninfeksi, bukan ISPA infeksi; bunyi napas juga dapat terjadi pada kondisi lain. Aturan ini cocok dengan gejala yang dipilih; hasil bukan diagnosis medis.',
-    [Bunyi,'G21']) :-
-    p05p06_satu_dari(['G20a','G20b'], Bunyi),
+    'Napas berbunyi secara umum yang disertai dada terasa berat/tertekan cocok dengan pola gejala yang dapat ditemukan pada asma. Asma adalah pembanding noninfeksi, bukan ISPA infeksi; bunyi napas juga dapat terjadi pada kondisi lain. Aturan ini cocok dengan gejala yang dipilih; hasil bukan diagnosis medis.',
+    ['G20b','G21']) :-
+    gejala_terpilih('G20b'),
     gejala_terpilih('G21').
 
 % =====================================================================

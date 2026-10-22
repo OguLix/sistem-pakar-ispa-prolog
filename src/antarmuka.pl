@@ -65,8 +65,9 @@ status_pesan(ada_hasil,
 % tampilan kamus (yang menyertakan keterangan detail) tidak membingungkan.
 pertanyaan_gejala('G05', 'Apakah Anda mengalami batuk?').
 pertanyaan_gejala('G07', 'Apakah Anda mengalami demam?').
+pertanyaan_gejala('G20b', 'Apakah napas Anda terdengar berbunyi tidak biasa?').
 pertanyaan_gejala(Kode, Teks) :-
-    \+ memberchk(Kode, ['G05', 'G07']),
+    \+ memberchk(Kode, ['G05', 'G07', 'G20b']),
     gejala_info(Kode, Nama),
     atomics_to_string(['Apakah Anda mengalami ', Nama, '?'], Teks).
 

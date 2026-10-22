@@ -24,7 +24,9 @@ muat_berkas(DirMain, Nama) :-
     consult(Jalur).
 
 % Directive muat: menghitung direktori file ini lalu memuat enam file
-% aplikasi secara berurutan.
+% aplikasi secara berurutan. File aturan dimuat setelah kamus/fakta
+% gejala; antarmuka dimuat setelah aturan dan mesin inferensi agar
+% pertanyaan khusus seperti G20b selaras dengan aturan yang memakainya.
 :- prolog_load_context(source, SumberMain),
    file_directory_name(SumberMain, DirMain),
    maplist(muat_berkas(DirMain),
