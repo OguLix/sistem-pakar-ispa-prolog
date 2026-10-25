@@ -1,34 +1,6 @@
-% =====================================================================
-% antarmuka.pl - Alur konsultasi dan tampilan hasil
-% File bersama tim (agent.md 5; docs/pembagian_tugas.md).
-% Dikerjakan 21 Oktober 2026.
-%
-% Batas tanggung jawab:
-% - File ini TIDAK berisi fakta sesi, aturan diagnosis, atau mesin
-%   inferensi. Hanya memakai predikat yang sudah ada:
-%   reset_sesi/0, tambah_gejala/1, tambah_detail/2, gejala_info/2,
-%   gejala_tandai/2, gejala_catatan/2, kondisi_info/2,
-%   kondisi_noninfeksi/1, inferensi/2 (agent.md 6).
-% - Tidak ada assertz/retract fakta sesi di file ini; semua perubahan
-%   data sesi lewat API basis_pengetahuan milik Anggota 4.
-% - Tanda bahaya dikelola LOKAL di file ini (tanda_bahaya_info/2);
-%   mereka BUKAN kode gejala baru dan tidak pernah menjadi syarat
-%   aturan. Sistem tidak mendiagnosis kondisi gawat dari tanda itu.
-% - Seluruh teks ASCII dan bahasa Indonesia. Hasil selalu dibingkai
-%   "kondisi yang mungkin sesuai", bukan diagnosis medis.
-% - Logika murni dipisah dari I/O agar mudah dites tanpa stdin
-%   (docs/arsitektur.md, bagian Predikat antarmuka).
-% =====================================================================
-
 :- use_module(library(lists)).
 :- use_module(library(readutil)).
 
-% ---------------------------------------------------------------------
-% BAGIAN 1: Predikat murni (tanpa I/O)
-% ---------------------------------------------------------------------
-
-% tanda_bahaya_info/2 - daftar 7 tanda darurat; urutan nomor = urutan
-% pertanyaan. Lokal antarmuka, bukan kode gejala dari matriks.
 tanda_bahaya_info(1, 'Sesak napas berat atau sulit bicara karena sesak').
 tanda_bahaya_info(2, 'Napas makin cepat atau semakin berat').
 tanda_bahaya_info(3, 'Nyeri dada berat atau menetap').
@@ -37,8 +9,6 @@ tanda_bahaya_info(5, 'Bibir atau ujung jari kebiruan').
 tanda_bahaya_info(6, 'Batuk berdarah atau dahak berdarah').
 tanda_bahaya_info(7, 'Kondisi cepat memburuk atau gejala berat datang tiba-tiba').
 
-% pesan_tanda_bahaya/2 - dari daftar nomor tanda yang dijawab "ya"
-% menjadi baris-baris peringatan yang mencolok.
 pesan_tanda_bahaya(NomorDaftar, Baris) :-
     maplist(baris_tanda_bahaya, NomorDaftar, BarisTanda),
     append([['!!! TANDA BAHAYA: SEGERA CARI PERTOLONGAN MEDIS !!!',
@@ -52,7 +22,6 @@ baris_tanda_bahaya(Nomor, Teks) :-
     tanda_bahaya_info(Nomor, Deskripsi),
     atomics_to_string(['- ', Deskripsi], Teks).
 
-% status_pesan/2 - mapping status inferensi ke pesan pengguna.
 status_pesan(belum_ada_gejala,
              "Belum ada gejala yang dipilih untuk sesi ini.").
 status_pesan(tidak_ada_aturan_cocok,
@@ -60,9 +29,6 @@ status_pesan(tidak_ada_aturan_cocok,
 status_pesan(ada_hasil,
              "Kondisi berikut adalah kondisi yang mungkin sesuai dengan gejala yang dipilih.").
 
-% pertanyaan_gejala/2 - teks pertanyaan untuk kode gejala.
-% G05 dan G07 memakai pertanyaan khusus yang lebih ringkas agar nama
-% tampilan kamus (yang menyertakan keterangan detail) tidak membingungkan.
 pertanyaan_gejala('G05', 'Apakah Anda mengalami batuk?').
 pertanyaan_gejala('G07', 'Apakah Anda mengalami demam?').
 pertanyaan_gejala('G20b', 'Apakah napas Anda terdengar berbunyi tidak biasa?').
@@ -71,23 +37,12 @@ pertanyaan_gejala(Kode, Teks) :-
     gejala_info(Kode, Nama),
     atomics_to_string(['Apakah Anda mengalami ', Nama, '?'], Teks).
 
-% gejala_ditanya_langsung/1 - gejala yang masuk wawancara umum.
-% Di luar wawancara umum:
-% - G25a-G25d : detail dahak (detail_dahak), keluar lewat alur detail G05.
-% - G08a      : perlu pengukuran suhu (perlu_pengukuran), keluar lewat
-%               alur G07 saat suhu benar-benar terukur.
-% - G29/G31   : perlu pengukuran/pemeriksaan (perlu_pengukuran dan
-%               perlu_pemeriksaan_ahli), keluar lewat pertanyaan opsional
-%               hasil pengukuran/pemeriksaan tenaga kesehatan.
 gejala_ditanya_langsung(Kode) :-
     gejala_info(Kode, _),
     \+ gejala_tandai(Kode, detail_dahak),
     \+ gejala_tandai(Kode, perlu_pengukuran),
     \+ gejala_tandai(Kode, perlu_pemeriksaan_ahli).
 
-% kelompokkan_hasil/2 - mengelompokkan daftar hasil/5 per kondisi.
-% keysort/2 sebelum group_pairs_by_key/2 agar urutan kelompok stabil
-% berdasarkan kode kondisi. Urutan bukan tingkat kepastian.
 kelompokkan_hasil(Hasil, Kelompok) :-
     maplist(hasil_ke_pasangan, Hasil, Pasangan),
     keysort(Pasangan, PasanganUrut),
@@ -107,31 +62,18 @@ bentuk_kelompok(Kode-DaftarNilai, kelompok(Kode, Nama, Noninfeksi, Baris)) :-
 
 buat_baris((_, Id, Penjelasan, Dukungan), baris(Id, Penjelasan, Dukungan)).
 
-% nama_tampil/2 - nama Ramah untuk layar hasil, digunakan teks_gejala/2.
-% Nama kamus gejala_info/2 memuat keterangan teknis (mis. G05 "Batuk
-% (jenis batuk menjadi detail)") yang pas untuk pengembang tetapi
-% membingungkan orang awam pada blok hasil; kode-kode yang terdaftar
-% di sini tampil versi pendeknya. Kode lain memakai nama kamus.
 nama_tampil('G05', 'Batuk').
 nama_tampil('G07', 'Demam').
 nama_tampil(Kode, Nama) :-
     \+ memberchk(Kode, ['G05', 'G07']),
     gejala_info(Kode, Nama).
 
-% teks_gejala/2 - kode gejala menjadi teks baca "KODE (nama)".
 teks_gejala(Kode, Teks) :-
     nama_tampil(Kode, Nama),
     !,
     atomics_to_string([Kode, ' (', Nama, ')'], Teks).
 teks_gejala(Kode, Kode).
 
-% ---------------------------------------------------------------------
-% potong_baris/3 - pemenggalan paragraf panjang per kata menjadi
-% beberapa baris maksimal Lebar karakter, agar Penjelasan/Saran tidak
-% tampil sebagai SATU baris panjang yang sulit dibaca di konsol
-% sempit. Kata tunggal yang sangat panjang tetap diberi barisnya
-% sendiri. Baris hasil berupa string.
-% ---------------------------------------------------------------------
 potong_baris(Teks, Lebar, DaftarBaris) :-
     jadikan_teks(Teks, Str),
     split_string(Str, " ", " ", DaftarKata),
@@ -156,25 +98,17 @@ gelar_baris([Kata|Sisa], Lebar, BarisSekarang, Daftar) :-
        Daftar = [BarisSekarang|SisaDaftar]
     ).
 
-% awali/3 - menambahkan awalan (umumnya jarak indentasi) pada setiap
-% baris hasil pemenggalan agar blok tetap tersusun rapi.
 awali(Awalan, Baris, BarisAwalan) :-
     atomics_to_string([Awalan, Baris], BarisAwalan).
 
-% poin_dukungan/2 - satu gejala pendukung menjadi poin daftar.
 poin_dukungan(TeksGejala, Baris) :-
     atomics_to_string(['  - ', TeksGejala], Baris).
 
-% garis_bingkai/1 - garis 64 karakter '=' untuk menonjolkan kepala
-% tiap kelompok kondisi pada hasil. ASCII murni agar tampil sama di
-% semua terminal Windows (tanpa bergantung dukungan warna ANSI).
 garis_bingkai(Baris) :-
     length(Chars, 64),
     maplist(=(61), Chars),
     string_chars(Baris, Chars).
 
-% baris_saran/2 - saran umum satu kondisi menjadi blok baris:
-% baris pertama berawalan "Saran umum: ", baris lanjutan di-indent.
 baris_saran(Saran, Baris) :-
     potong_baris(Saran, 64, Mentah),
     Mentah = [Pertama|Sisa],
@@ -182,19 +116,12 @@ baris_saran(Saran, Baris) :-
     maplist(awali('    '), Sisa, SisaInden),
     append([[BarisPertama], SisaInden], Baris).
 
-% jadikan_teks/2 - normalisasi atom/string menjadi string untuk tampilan
-% (Penjelasan aturan antar file memakai campuran atom dan string).
 jadikan_teks(Atom, Teks) :-
     atom(Atom),
     !,
     atom_string(Atom, Teks).
 jadikan_teks(Teks, Teks).
 
-% susun_keluaran/4 - rakit baris tampilan sesi:
-%   1) blok tanda bahaya (bila ada) - paling atas agar tidak tertutup
-%      daftar kecocokan;
-%   2) blok hasil per kondisi / pesan status;
-%   3) blok penutup (disclaimer + anjuran evaluasi tenaga kesehatan).
 susun_keluaran(NomorBahaya, Status, Hasil, Baris) :-
     blok_bahaya(NomorBahaya, BarisBahaya),
     blok_hasil(Status, Hasil, BarisHasil),
@@ -207,37 +134,6 @@ blok_bahaya(NomorDaftar, Baris) :-
     pesan_tanda_bahaya(NomorDaftar, Sementara),
     append(Sementara, [''], Baris).
 
-% ---------------------------------------------------------------------
-% saran_kondisi/2 - kamus saran umum edukasi per kondisi (P01-P06).
-% Lokasi: antarmuka, karena hanya dipakai untuk TAMPILAN hasil; ini
-% BUKAN syarat aturan, BUKAN kode gejala, dan tidak mengubah inferensi
-% (agent.md 5, 6). Setiap kelompok kondisi yang muncul di hasil akan
-% menambahkan satu blok "Saran umum" dari kamus ini.
-%
-% Teks bertumpu pada sumber docs/referensi.md (akses 21 Oktober 2026):
-% - P01: CDC "About Common Cold" (umumnya pulih kurang dari seminggu)
-%   dan CDC "Manage Common Cold" (istirahat, cairan; evaluasi bila
-%   gejala lebih dari 10 hari tanpa membaik, demam lebih dari 4 hari,
-%   sulit bernapas, atau membaik lalu memburuk).
-% - P02: sumber yang dipakai (Kemenkes "Diagnosis Faringitis")
-%   mendeskripsikan gejala, bukan pengelolaan; teks sengaja konservatif
-%   tanpa klaim baru: anjuran evaluasi + batas keterbatasan penyebab
-%   yang sama dengan catatan file aturan.
-% - P03: CDC "Sinus Infection Basics", bagian When to seek medical
-%   care (>10 hari tanpa membaik, memburuk setelah membaik, demam
-%   3-4 hari lebih, nyeri wajah/sakit kepala berat) dan Treatment
-%   (banyak kasus membaik dengan sendirinya).
-% - P04: CDC "Chest Cold (Acute Bronchitis) Basics" (gejala kurang
-%   dari 3 minggu; evaluasi bila lebih dari 3 minggu, demam lebih
-%   dari 5 hari, dahak berdarah, sesak; umumnya membaik sendiri).
-% - P05: WHO Asthma; asma pembanding noninfeksi (agent.md 1), jadi
-%   saran hanya mengarah ke pengelolaan oleh tenaga kesehatan.
-% - P06: WHO Pneumonia dan PNPK pneumonia dewasa Kemenkes; saran
-%   berupa penilaian tenaga kesehatan, bukan pengobatan lingkap.
-% Batas keselamatan (agent.md 3): teks tidak memuat nama obat, dosis,
-% antibiotik, atau klaim kepastian; frasa tetap "evaluasi/segera cari
-% pertolongan medis". Teks ASCII murni (aman konsol Windows).
-% ---------------------------------------------------------------------
 saran_kondisi('P01',
     "Selesma biasanya membaik sendiri dalam waktu kurang dari seminggu. Istirahat cukup dan minum cairan membantu kenyamanan. Periksa ke tenaga kesehatan bila gejala tidak membaik setelah sekitar 10 hari, demam melewati 4 hari, muncul napas cepat atau sulit bernapas, atau keluhan memburuk kembali setelah membaik.").
 saran_kondisi('P02',
@@ -268,23 +164,12 @@ blok_hasil(Status, _, Baris) :-
              'Itu BUKAN berarti Anda bebas dari penyakit.',
              ''].
 
-% kelompok_ke_baris/3 - satu blok tampilan per kelompok kondisi dengan
-% nomor urut tampilan (bukan peringkat; disclaimer tetap dicetak di
-% header hasil). Baris hasil berupa KUMPULAN blok (daftar daftar) yang
-% diratakan oleh blok_hasil lewat append.
 kelompok_ke_baris([], _, []).
 kelompok_ke_baris([Kelompok|Sisa], Nomer, [BarisGrup|SisaBaris]) :-
     baris_kelompok(Nomer, Kelompok, BarisGrup),
     NomerBerikut is Nomer + 1,
     kelompok_ke_baris(Sisa, NomerBerikut, SisaBaris).
 
-% baris_kelompok/3 - susun blok satu kondisi dengan bingkai agar
-% kepala kondisi mudah dilihat:
-%   baris kosong -> garis '=' -> "No. N." + judul kondisi -> garis '='
-%   -> blok tiap aturan yang cocok -> Saran umum.
-% Nomor urut tampilan bukan peringkat (disclaimer di header hasil).
-% Kegagalan saran_kondisi sengaja tidak menggagalkan tampilan
-% (kamus tidak lengkap tidak boleh menyembunyikan hasil).
 baris_kelompok(Nomer, kelompok(Kode, Nama, Noninfeksi, DaftarBaris), BarisKelompok) :-
     ( Noninfeksi == true
     -> atomics_to_string(['Pembanding noninfeksi (bukan ISPA infeksi): ',
@@ -305,9 +190,6 @@ baris_kelompok(Nomer, kelompok(Kode, Nama, Noninfeksi, DaftarBaris), BarisKelomp
             BarisSaran],
            BarisKelompok).
 
-% baris_aturan/2 - susun blok satu aturan yang cocok, urutan bacaan
-% dari yang paling dekat dengan pengalaman pengguna:
-%   gejala yang menyertai -> penjelasan (dipenggal) -> ID aturan.
 baris_aturan(baris(Id, Penjelasan, Dukungan), Baris) :-
     jadikan_teks(Penjelasan, P),
     maplist(teks_gejala, Dukungan, Dteks),
@@ -336,17 +218,11 @@ blok_penutup(Baris) :-
              '- Jika tanda bahaya muncul, segera cari pertolongan medis; jangan menunggu.',
              ''].
 
-% Parsing masukan murni (dipakai I/O dan bisa dites langsung).
-% kata_pertama/2 - token pertama dari satu baris masukan, huruf kecil.
-% Spasi/tab juga dipakai sebagai padding agar baris berawal/berakhir
-% spasi tetap menghasilkan token pertama yang tidak kosong.
 kata_pertama(Teks, Kata) :-
     split_string(Teks, " \t", " \t", [Pertama|_]),
     atom_string(KAwal, Pertama),
     downcase_atom(KAwal, Kata).
 
-% jawaban_ya_tidak/2 - 'ya'/'y' -> ya; 'tidak'/'t' -> tidak; selain itu
-% gagal (pemanggil I/O mengulang pertanyaan).
 jawaban_ya_tidak(Teks, ya) :-
     kata_pertama(Teks, Kata),
     memberchk(Kata, [ya, y]).
@@ -354,14 +230,11 @@ jawaban_ya_tidak(Teks, tidak) :-
     kata_pertama(Teks, Kata),
     memberchk(Kata, [tidak, t]).
 
-% pilihan_menu/2 - masukan menu: '1' atau '2'; selain itu gagal.
 pilihan_menu(Teks, 1) :-
     kata_pertama(Teks, '1').
 pilihan_menu(Teks, 2) :-
     kata_pertama(Teks, '2').
 
-% parse_suhu/3 - baris masukan suhu menjadi (Nilai, TeksNormal).
-% Menerima koma desimal (38,2) dan titik (38.2); gagal untuk bukan angka.
 parse_suhu(Teks, Nilai, TeksSuhu) :-
     split_string(Teks, " \t", "", [Pertama|_]),
     split_string(Pertama, ",", "", Bagian),
@@ -371,13 +244,6 @@ parse_suhu(Teks, Nilai, TeksSuhu) :-
     Nilai < 50.0,
     TeksSuhu = Bersih.
 
-% ---------------------------------------------------------------------
-% BAGIAN 2: I/O konsultasi
-% ---------------------------------------------------------------------
-
-% tulis_baris/1, baca_baris/1 - pembantu I/O intensif.
-% baca_baris melempar akhir_masukan ketika stream berakhir (EOF),
-% sehingga tidak ada error yang tidak tertangani di wawancara.
 tulis_baris(Teks) :-
     format('~s~n', [Teks]).
 
@@ -388,8 +254,6 @@ baca_baris(Teks) :-
     ;  Teks = Bacaan
     ).
 
-% tanya_ya_tidak/2 - pertanyaan ya/tidak dengan pengulangan masukan
-% tidak valid sampai jawaban dipahami.
 tanya_ya_tidak(Pertanyaan, Jawaban) :-
     format('~s (ya/tidak): ', [Pertanyaan]),
     baca_baris(Teks),
@@ -399,8 +263,6 @@ tanya_ya_tidak(Pertanyaan, Jawaban) :-
        tanya_ya_tidak(Pertanyaan, Jawaban)
     ).
 
-% jalankan_aplikasi/0 - pembuka, menu (1 konsultasi baru, 2 keluar),
-% penanganan EOF, dan keluar bersih dengan halt 0.
 jalankan_aplikasi :-
     tampilkan_pembuka,
     catch(loop_menu,
@@ -439,14 +301,6 @@ baca_pilihan_menu(Pilihan) :-
        baca_pilihan_menu(Pilihan)
     ).
 
-% konsultasi/0 - satu sesi penuh:
-%   1) reset fakta sesi lama;
-%   2) pembuka + peringatan;
-%   3) 7 pertanyaan tanda bahaya terlebih dahulu; jika ada "ya", pesan
-%      darurat muncul segera dan diulang di paling atas hasil;
-%   4) wawancara gejala umum;
-%   5) pertanyaan opsional hasil pengukuran/pemeriksaan (G29/G31);
-%   6) inferensi dan tampilan hasil (tanda bahaya tetap paling atas).
 konsultasi :-
     reset_sesi,
     tampilkan_pembuka_konsultasi,
@@ -464,9 +318,6 @@ tampilkan_pembuka_konsultasi :-
     format('Data pribadi tidak diminta.~n', []),
     format('~nPertanyaan tanda bahaya terlebih dahulu:~n', []).
 
-% jawab_tanda_bahaya/2 - tanyakan 7 tanda secara berurutan; kumpulkan
-% nomor yang dijawab "ya". Setiap "ya" langsung memunculkan pesan
-% darurat yang mencolok (dan nanti diulang di bagian hasil).
 jawab_tanda_bahaya(8, []) :- !.
 jawab_tanda_bahaya(Nomor, Pilihan) :-
     Nomor >= 1,
@@ -490,7 +341,6 @@ jawab_tanda_bahaya(Nomor, Pilihan) :-
        )
     ).
 
-% Wawancara gejala umum berdasarkan gejala_info/2 (urutan kamus).
 tanya_semua_gejala :-
     format('~nWawancara gejala:~n', []),
     findall(Kode, gejala_ditanya_langsung(Kode), Daftar),
@@ -512,8 +362,6 @@ tanya_daftar_gejala([Kode|Sisa]) :-
     ),
     tanya_daftar_gejala(Sisa).
 
-% Alur detail G05: jenis batuk (kering/berdahak) sebagai detail; bila
-% berdahak, rincian dahak G25a-G25d diberi pertanyaan opsional.
 pilihan_opsi_batuk([op(1, 'kering'), op(2, 'berdahak'), op(3, 'lewati')]).
 
 detail_kode('G25a').
@@ -584,9 +432,6 @@ pilih_opsi([op(Nomor, Nilai)|_], Teks, Nilai) :-
 pilih_opsi([_|Sisa], Teks, Nilai) :-
     pilih_opsi(Sisa, Teks, Nilai).
 
-% Alur detail G07: bila suhu benar-benar diukur, simpan detail suhu;
-% bila >= 38 C, catat G08a lewat tambah_gejala/1 (validasi induk tetap
-% di basis pengetahuan). Nilai di bawah 38 C tidak dianggap G08a.
 tanya_suhu :-
     tanya_ya_tidak('Apakah suhu benar-benar diukur dengan termometer?', Jawaban),
     ( Jawaban == ya
@@ -616,10 +461,6 @@ tanya_nilai_suhu(Sisa) :-
        tanya_nilai_suhu(Sisa1)
     ).
 
-% Pertanyaan opsional G29/G31 (adjustment tim): tidak ditanya ke pengguna
-% awam, kecuali pengguna menyatakan punya hasil pengukuran frekuensi
-% napas atau pemeriksaan tenaga kesehatan yang sebenarnya, sehingga
-% aturan P06-R06 tetap dapat tercapai dengan cara yang jujur.
 tanya_opsi_pengukuran :-
     format('~nBagian opsional: hasil pengukuran atau pemeriksaan.~n', []),
     tanya_ya_tidak('Apakah Anda memiliki hasil pengukuran frekuensi napas atau pemeriksaan tenaga kesehatan yang ingin dicatat?', Jawaban),

@@ -1,30 +1,5 @@
-% =====================================================================
-% tests/tests.pl - PL-Unit Sistem Pakar ISPA
-% File bersama tim (agent.md 5). Jalankan dari root repo:
-%   swipl -q -s tests/tests.pl -g run_tests -t halt
-%
-% File ini TIDAK memuat src/main.pl, agar aplikasi tidak berjalan
-% saat pengujian; file src dimuat satu per satu dengan jalur relatif
-% terhadap lokasi file tests ini.
-%
-% Cakupan (docs/rencana_pengujian.md):
-% - T01-T12.
-% - Kasus positif dan negatif untuk SELURUH 30 klausa aturan melalui
-%   tabel kasus_aturan/7; setiap baris tabel dipecah menjadi satu tes
-%   statis bernama memuat IdAturan (pos_P01_R01, neg_P01_R01, ...) agar
-%   kegagalan selalu menyebut IdAturan spesifik.
-% - Guard G08a tanpa G07, penolakan detail tanpa gejala induk, "detail
-%   bukan gejala", reset antar sesi, beberapa kondisi cocok bersamaan,
-%   P05 tampil sebagai pembanding noninfeksi, tanda bahaya muncul di
-%   atas hasil, dan pemindaian frasa terlarang dengan pencocokan frasa
-%   utuh per token ("dipastikan" tidak dianggap melanggar "pasti").
-% - Tidak ada tes interaktif yang bergantung pada stdin sungguhan;
-%   tes interaksi memakai predikat murni antarmuka.
-% =====================================================================
-
 :- use_module(library(plunit)).
 
-% Muat file src satu per satu, jalur relatif terhadap file ini.
 muat_src(DirRoot, Nama) :-
     atomics_to_string([DirRoot, '/src/', Nama], Jalur),
     consult(Jalur).
@@ -40,10 +15,6 @@ muat_src(DirRoot, Nama) :-
             'mesin_inferensi.pl',
             'antarmuka.pl']).
 
-% ---------------------------------------------------------------------
-% Helper tes: isi fakta sesi lewat API resmi saja (tambah_gejala,
-% tambah_detail, reset_sesi). Tidak ada assertz/retract langsung.
-% ---------------------------------------------------------------------
 isi_sesi(Gejala, Detail) :-
     reset_sesi,
     forall(member(Kode, Gejala), tambah_gejala(Kode)),
@@ -53,12 +24,6 @@ isi_detail(none) :- !.
 isi_detail(Daftar) :-
     forall(member(Kode-Nilai, Daftar), tambah_detail(Kode, Nilai)).
 
-% ---------------------------------------------------------------------
-% Tabel kasus uji per klausa aturan: 30 klausa, masing-masing satu
-% kasus positif dan satu kasus negatif (salah satu syarat dihilangkan).
-% Kolom: sumber, kondisi, IdAturan, gejala pos, detail pos,
-%        gejala neg, detail neg.
-% ---------------------------------------------------------------------
 kasus_aturan(aturan_p01_p02, 'P01', 'P01-R01', ['G01','G02'], none, ['G01'], none).
 kasus_aturan(aturan_p01_p02, 'P01', 'P01-R02', ['G02','G03'], none, ['G03'], none).
 kasus_aturan(aturan_p01_p02, 'P01', 'P01-R03', ['G01','G04'], none, ['G04'], none).
@@ -92,10 +57,6 @@ kasus_aturan(aturan_p05_p06, 'P06', 'P06-R04', ['G05','G07','G09'], none, ['G09'
 kasus_aturan(aturan_p05_p06, 'P06', 'P06-R05', ['G07','G08a','G08b','G19'], none, ['G07','G08a','G19'], none).
 kasus_aturan(aturan_p05_p06, 'P06', 'P06-R06', ['G05','G19','G29'], none, ['G05','G19'], none).
 
-% ---------------------------------------------------------------------
-% Helper pemindaian frasa terlarang: frasa utuh per token (huruf kecil),
-% bukan substring, sehingga "dipastikan" tidak dianggap "pasti".
-% ---------------------------------------------------------------------
 frasa_terlarang([['pasti', 'menderita'],
                  ['pasti', 'terkena'],
                  ['pasti', 'sehat'],
@@ -126,18 +87,12 @@ frasa_di(F, Tok) :-
     append(_, Sisa, Tok),
     append(F, _, Sisa).
 
-% Kumpulkan seluruh Penjelasan dari tiga predikat aturan (tanpa
-% mengevaluasi syarat aturan; clause/2 hanya mengambil kepala klausa).
 aturan_penjelasan(P) :- clause(aturan_p01_p02(_, _, P, _), _).
 aturan_penjelasan(P) :- clause(aturan_p03_p04(_, _, P, _), _).
 aturan_penjelasan(P) :- clause(aturan_p05_p06(_, _, P, _), _).
 
-% ---------------------------------------------------------------------
-% Suite tes
-% ---------------------------------------------------------------------
 :- begin_tests(sistem_pakar_ispa).
 
-% T01: file termuat dan predikat kunci tersedia.
 test(t01_file_termuat) :-
     current_predicate(gejala_info/2),
     current_predicate(tambah_gejala/1),
@@ -147,60 +102,47 @@ test(t01_file_termuat) :-
     current_predicate(kelompokkan_hasil/2),
     current_predicate(susun_keluaran/4).
 
-% T02: tidak ada gejala dipilih; tidak menyimpulkan penyakit.
 test(t02_tanpa_gejala) :-
     reset_sesi,
     inferensi(belum_ada_gejala, []).
 
-% T03: hanya satu gejala umum tidak menyatakan kondisi.
 test(t03_satu_gejala_umum) :-
     isi_sesi(['G05'], none),
     inferensi(tidak_ada_aturan_cocok, []).
 
-% T04: aturan yang ditentukan muncul dengan ID dan alasan sesuai.
 test(t04_satu_aturan_cocok_berserta_alasan) :-
     isi_sesi(['G01', 'G02'], none),
     inferensi(ada_hasil, Hasil),
     Hasil = [hasil('P01', 'Common cold / selesma', 'P01-R01', _, ['G01', 'G02'])].
 
-% T05: dua aturan kondisi berbeda tampil bersamaan.
 test(t05_banyak_kondisi_bersamaan) :-
     isi_sesi(['G01', 'G02', 'G04'], none),
     inferensi(ada_hasil, Hasil),
     findall(Kode, member(hasil(Kode, _, _, _, _), Hasil), Mentah),
     sort(Mentah, KodeUrut),
-    % P03 tidak lagi ikut: sejak pengetatan P03-R04 (masukan integrasi +
-    % pengujian, Opu 3; dikerjakan oleh pemilik aturan_p03_p04.pl),
-    % G04/G05 tidak lagi menjadi pendukung R04, sehingga kombinasi hidung
-    % + nyeri tenggorokan ini hanya cocok dengan P01 dan P02.
     KodeUrut == ['P01', 'P02'].
 
-% T06: gejala tidak memenuhi syarat lengkap aturan manapun.
 test(t06_syarat_tidak_lengkap) :-
     isi_sesi(['G01', 'G30a'], none),
     inferensi(tidak_ada_aturan_cocok, []).
 
-% T07: reset menghapus sisa sesi sebelumnya.
 test(t07_reset_antar_sesi) :-
     isi_sesi(['G01', 'G02'], none),
     reset_sesi,
     daftar_gejala_terpilih([]),
     inferensi(belum_ada_gejala, []).
 
-% T08: detail batuk tersimpan sebagai detail G05, bukan gejala tambahan.
 test(t08_detail_batuk_bukan_gejala_baru) :-
     isi_sesi(['G05'], ['G05'-'kering']),
     daftar_gejala_terpilih(['G05']),
     detail_gejala('G05', 'kering').
 
-% T09: detail suhu bukan bukti independen kedua dari demam.
 test(t09_detail_suhu_bukan_gejala_kedua) :-
     isi_sesi(['G07'], ['G07'-'suhu_38.2']),
     daftar_gejala_terpilih(['G07']),
     \+ daftar_gejala_terpilih(['G07', 'G08a']),
     detail_gejala('G07', 'suhu_38.2').
 
-% T10: P05 cocok dan ditandai sebagai pembanding noninfeksi.
 test(t10_p05_pembanding_noninfeksi) :-
     isi_sesi(['G19', 'G20a'], none),
     inferensi(ada_hasil, Hasil),
@@ -208,8 +150,6 @@ test(t10_p05_pembanding_noninfeksi) :-
     member(kelompok('P05', 'Asma (pembanding noninfeksi)', true, _), Kelompok),
     kondisi_noninfeksi('P05').
 
-% P05-R06 khusus untuk napas berbunyi umum (G20b), bukan mengi (G20a)
-% yang sudah ditangani P05-R02; antarmuka menanyakan G20b secara jelas.
 test(p05_r06_g20b_tidak_tumpang_tindih) :-
     isi_sesi(['G20a', 'G21'], none),
     \+ aturan_p05_p06('P05', 'P05-R06', _, _),
@@ -220,7 +160,6 @@ test(p05_r06_g20b_tidak_tumpang_tindih) :-
     sub_string(Pertanyaan, _, _, _, 'napas Anda terdengar berbunyi'),
     !.
 
-% T11: tanda bahaya tampil sebelum daftar kecocokan (urutan baris).
 test(t11_tanda_bahaya_di_atas_hasil) :-
     HasilUji = [hasil('P01', 'Common cold / selesma', 'P01-R01',
                       'Penjelasan untuk uji t11', ['G01'])],
@@ -232,7 +171,6 @@ test(t11_tanda_bahaya_di_atas_hasil) :-
     !,
     PosBahaya < PosHasil.
 
-% T12: masukan tidak valid ditolak oleh parser murni (I/O mengulang).
 test(t12_input_tidak_valid_ditolak) :-
     \+ jawaban_ya_tidak('makan', _),
     \+ jawaban_ya_tidak('', _),
@@ -240,7 +178,6 @@ test(t12_input_tidak_valid_ditolak) :-
     \+ pilihan_menu('', _),
     \+ parse_suhu('dingin', _, _).
 
-% Kelengkapan tabel kasus: 30 klausa, id unik, seluruh kondisi terwakili.
 test(tabel_kasus_30_klausa) :-
     findall(Id, kasus_aturan(_, _, Id, _, _, _, _), Semua),
     length(Semua, 30),
@@ -248,11 +185,6 @@ test(tabel_kasus_30_klausa) :-
     length(Unik, 30),
     findall(Kondisi, kasus_aturan(_, Kondisi, _, _, _, _, _), KondisiMentah),
     sort(KondisiMentah, ['P01', 'P02', 'P03', 'P04', 'P05', 'P06']).
-
-% Kasus positif dan negatif per klausa aturan. plunit menuntut nama tes
-% atom, jadi setiap baris tabel dipecah menjadi deklarasi statis dengan
-% nama yang memuat IdAturan (mis. pos_P01_R01), sehingga kegagalan tes
-% selalu menyebut IdAturan spesifik. Isi pemanggilan tetap dari tabel.
 
 uji_pos(Kondisi, Id) :-
     kasus_aturan(Sumber, Kondisi, Id, Pos, DetailPos, _, _),
@@ -266,36 +198,30 @@ uji_neg(Kondisi, Id) :-
     isi_sesi(Neg, DetailNeg),
     \+ call(Sumber, Kondisi, Id, _, _).
 
-% Kasus P01.
 test(pos_P01_R01) :- uji_pos('P01', 'P01-R01').
 test(pos_P01_R02) :- uji_pos('P01', 'P01-R02').
 test(pos_P01_R03) :- uji_pos('P01', 'P01-R03').
 test(pos_P01_R04) :- uji_pos('P01', 'P01-R04').
 test(pos_P01_R05) :- uji_pos('P01', 'P01-R05').
-% Kasus P02.
 test(pos_P02_R01) :- uji_pos('P02', 'P02-R01').
 test(pos_P02_R02) :- uji_pos('P02', 'P02-R02').
 test(pos_P02_R03) :- uji_pos('P02', 'P02-R03').
 test(pos_P02_R04) :- uji_pos('P02', 'P02-R04').
-% Kasus P03.
 test(pos_P03_R01) :- uji_pos('P03', 'P03-R01').
 test(pos_P03_R02) :- uji_pos('P03', 'P03-R02').
 test(pos_P03_R03) :- uji_pos('P03', 'P03-R03').
 test(pos_P03_R04) :- uji_pos('P03', 'P03-R04').
-% Kasus P04.
 test(pos_P04_R01) :- uji_pos('P04', 'P04-R01').
 test(pos_P04_R02) :- uji_pos('P04', 'P04-R02').
 test(pos_P04_R03) :- uji_pos('P04', 'P04-R03').
 test(pos_P04_R04) :- uji_pos('P04', 'P04-R04').
 test(pos_P04_R05) :- uji_pos('P04', 'P04-R05').
-% Kasus P05.
 test(pos_P05_R01) :- uji_pos('P05', 'P05-R01').
 test(pos_P05_R02) :- uji_pos('P05', 'P05-R02').
 test(pos_P05_R03) :- uji_pos('P05', 'P05-R03').
 test(pos_P05_R04) :- uji_pos('P05', 'P05-R04').
 test(pos_P05_R05) :- uji_pos('P05', 'P05-R05').
 test(pos_P05_R06) :- uji_pos('P05', 'P05-R06').
-% Kasus P06.
 test(pos_P06_R01) :- uji_pos('P06', 'P06-R01').
 test(pos_P06_R02) :- uji_pos('P06', 'P06-R02').
 test(pos_P06_R03) :- uji_pos('P06', 'P06-R03').
@@ -303,8 +229,6 @@ test(pos_P06_R04) :- uji_pos('P06', 'P06-R04').
 test(pos_P06_R05) :- uji_pos('P06', 'P06-R05').
 test(pos_P06_R06) :- uji_pos('P06', 'P06-R06').
 
-% Kasus negatif: syarat dihilangkan, klausa dengan IdAturan itu tidak
-% menghasilkan apa-apa.
 test(neg_P01_R01) :- uji_neg('P01', 'P01-R01').
 test(neg_P01_R02) :- uji_neg('P01', 'P01-R02').
 test(neg_P01_R03) :- uji_neg('P01', 'P01-R03').
@@ -336,31 +260,26 @@ test(neg_P06_R04) :- uji_neg('P06', 'P06-R04').
 test(neg_P06_R05) :- uji_neg('P06', 'P06-R05').
 test(neg_P06_R06) :- uji_neg('P06', 'P06-R06').
 
-% Guard G08a: ditolak tanpa G07, diterima setelah G07.
 test(g08a_ditolak_tanpa_g07) :-
     reset_sesi,
     \+ tambah_gejala('G08a'),
     tambah_gejala('G07'),
     tambah_gejala('G08a').
 
-% Detail dahak tidak boleh masuk lewat tambah_gejala/1.
 test(detail_dahak_ditolak_di_tambah_gejala) :-
     reset_sesi,
     \+ tambah_gejala('G25a').
 
-% Detail ditolak ketika gejala induknya belum terpilih.
 test(detail_tanpa_induk_ditolak) :-
     reset_sesi,
     \+ tambah_detail('G25a', 'kuning_hijau'),
     \+ tambah_detail('G07', 'suhu_39').
 
-% Detail tidak dihitung sebagai gejala kedua.
 test(detail_bukan_gejala_kedua) :-
     isi_sesi(['G05'], ['G05'-'kering']),
     daftar_gejala_terpilih(['G05']),
     \+ daftar_gejala_terpilih(['G05', 'kering']).
 
-% Beberapa kondisi berbeda bisa cocok bersamaan (mis. P01 dan P03).
 test(banyak_kondisi_bersamaan_p01_p03) :-
     isi_sesi(['G01', 'G02', 'G15'], none),
     inferensi(ada_hasil, Hasil),
@@ -368,8 +287,6 @@ test(banyak_kondisi_bersamaan_p01_p03) :-
     sort(Mentah, KodeUrut),
     KodeUrut == ['P01', 'P03'].
 
-% Kelompok hasil menggabungkan beberapa aturan kondisi sama dan
-% menandai P05 sebagai noninfeksi.
 test(kelompokkan_hasil_menggabungkan_dan_menandai) :-
     HasilUji = [hasil('P01', 'Common cold / selesma', 'P01-R01', 'uji a', ['G01']),
                 hasil('P01', 'Common cold / selesma', 'P01-R02', 'uji b', ['G02']),
@@ -382,13 +299,10 @@ test(kelompokkan_hasil_menggabungkan_dan_menandai) :-
     member(kelompok('P05', _, true, _), Kelompok),
     !.
 
-% Status pesan tersedia untuk ketiga status.
 test(status_pesan_tersedia) :-
     forall(member(Status, [belum_ada_gejala, tidak_ada_aturan_cocok, ada_hasil]),
            ( status_pesan(Status, Pesan), string(Pesan) )).
 
-% Hasil kosong dikata sebagai "belum menemukan kecocokan", bukan
-% kesimpulan orang bebas dari penyakit.
 test(blok_hasil_tanpa_kecocokan_bukan_berarti_sehat) :-
     blok_hasil(tidak_ada_aturan_cocok, _, Baris),
     atomics_to_string(Baris, ' ', Teks),
@@ -397,14 +311,12 @@ test(blok_hasil_tanpa_kecocokan_bukan_berarti_sehat) :-
     sub_string(Teks, _, _, _, 'BUKAN berarti Anda bebas dari penyakit'),
     !.
 
-% Tanpa tanda bahaya, tidak ada pesan darurat pada keluaran.
 test(tanpa_bahaya_tanpa_pesan_darurat) :-
     susun_keluaran([], belum_ada_gejala, [], Baris),
     atomics_to_string(Baris, ' ', Teks),
     \+ sub_string(Teks, _, _, _, 'SEGERA CARI PERTOLONGAN MEDIS'),
     !.
 
-% Kelompok P05 membawa label "bukan ISPA infeksi" pada tampilan.
 test(tampilan_p05_bukan_ispa_infeksi) :-
     isi_sesi(['G01', 'G02', 'G19', 'G20a'], none),
     inferensi(ada_hasil, Hasil),
@@ -415,8 +327,6 @@ test(tampilan_p05_bukan_ispa_infeksi) :-
     sub_string(Teks, _, _, _, 'bukan ISPA infeksi'),
     !.
 
-% Kamus saran umum lengkap: setiap kode kondisi memiliki teks string
-% yang cukup untuk dibaca (tidak ada entri kosong/terlalu pendek).
 test(saran_kondisi_lengkap_untuk_semua_kondisi) :-
     forall(kondisi_info(Kode, _),
            ( saran_kondisi(Kode, Saran),
@@ -424,14 +334,10 @@ test(saran_kondisi_lengkap_untuk_semua_kondisi) :-
              string_length(Saran, Panjang),
              Panjang > 30 )).
 
-% Semua teks saran umum bebas frasa terlarang (agent.md 3).
 test(saran_bebas_frasa_terlarang) :-
     forall(saran_kondisi(_, Saran),
            ( tokenisasi(Saran, Tok), frasa_am(Tok) )).
 
-% Blok hasil menampilkan Saran umum, gejala pendukung berbentuk poin,
-% dan nama gejala versi ramah (G05 tampil "Batuk", tanpa keterangan
-% teknis kamus yang membingungkan orang awam).
 test(tampilan_saran_umum_dan_nama_gejala_ramah) :-
     isi_sesi(['G01', 'G05'], none),
     inferensi(ada_hasil, Hasil),
@@ -444,9 +350,6 @@ test(tampilan_saran_umum_dan_nama_gejala_ramah) :-
     !,
     \+ sub_string(Teks, _, _, _, 'jenis batuk menjadi detail').
 
-% pemenggalan baris: teks panjang pecah per kata dengan setiap baris
-% tidak melewati lebar target; hasil selalu string; kata tunggal yang
-% sangat panjang tetap mendapat barisnya sendiri tanpa menggantung.
 test(potong_baris_pecah_per_kata) :-
     potong_baris('Kalimat panjang untuk uji pemenggalan per kata dengan lebar kecil', 20, Baris),
     length(Baris, N),
@@ -458,9 +361,6 @@ test(potong_baris_pecah_per_kata) :-
     potong_baris(KataPanjang, 20, BarisKataPanjang),
     BarisKataPanjang = [KataPanjang].
 
-% Bingkai kondisi: kepala tiap kelompok kondisi dibingkai baris '='
-% atas dan bawah serta bernomor "No. N" agar mudah dilihat; nomor
-% bersifat urutan tampilan, bukan peringkat (disclaimer di header).
 test(tampilan_bingkai_kepala_kondisi) :-
     isi_sesi(['G01', 'G05'], none),
     inferensi(ada_hasil, Hasil),
@@ -474,14 +374,10 @@ test(tampilan_bingkai_kepala_kondisi) :-
     JumlahGaris >= 2,
     once(muncul_berturut(Baris, Garis)).
 
-% muncul_berturut/2 - benar bila daftar baris memuat pola
-% [Elemen, _BarisDiAntaranya, Elemen] (bingkai atas, kepala kondisi,
-% bingkai bawah yang bertulisan sama).
 muncul_berturut([Elemen, _, Elemen|_], Elemen).
 muncul_berturut([_|Sisa], Elemen) :-
     muncul_berturut(Sisa, Elemen).
 
-% Parser murni antarmuka: jawaban ya/tidak, menu, suhu.
 test(jawaban_ya_tidak_murni) :-
     jawaban_ya_tidak('Ya', ya),
     jawaban_ya_tidak('  y', ya),
@@ -499,7 +395,6 @@ test(parse_suhu_murni) :-
     parse_suhu('39.1 C', 39.1, "39.1"),
     \+ parse_suhu('dingin', _, _).
 
-% Wawancara umum tidak menyertakan kode khusus.
 test(wawancara_luar_kode_khusus) :-
     \+ gejala_ditanya_langsung('G25a'),
     \+ gejala_ditanya_langsung('G08a'),
@@ -508,20 +403,17 @@ test(wawancara_luar_kode_khusus) :-
     gejala_ditanya_langsung('G30b'),
     gejala_ditanya_langsung('G05').
 
-% Kontrol tokenizer: "dipastikan" bukan token "pasti".
 test(tokenisasi_dipastikan_bukan_pasti) :-
     tokenisasi('Penyebab tidak dapat dipastikan dari gejala', Tok),
     memberchk('dipastikan', Tok),
     frasa_am(Tok).
 
-% Kontrol: frasa terlarang utuh memang dikenali (kemampuan detector).
 test(kontrol_frasa_terlarang_dikenali) :-
     tokenisasi('Anda pasti menderita kondisi ini', Tok),
     frasa_di(['pasti', 'menderita'], Tok),
     !,
     \+ frasa_am(Tok).
 
-% Pemindaian Seluruh Penjelasan aturan: bebas frasa terlarang.
 test(penjelasan_bebas_frasa_terlarang) :-
     forall(aturan_penjelasan(P),
            ( tokenisasi(P, Tok), frasa_am(Tok) )).
